@@ -1,21 +1,78 @@
-import React, {useState} from 'react';
+import React, {useState, ChangeEvent, useEffect} from 'react';
 import { View, ImageBackground, Image, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-
+import axios from 'axios';
 import { RectButton } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
-
+import RNPickerSelect from 'react-native-picker-select';
 import { useNavigation } from '@react-navigation/native';
 
+
+interface IBGEUFResponse{
+  sigla: string;
+}
+
+interface IBGECityResponse{
+  nome: string;
+}
+
+interface UFs {
+  label: string;
+  value: string;
+}
+
+interface Cities {
+  label: string;
+  value: string;
+}
 
 const Home = () => {
   const [uf, setUf] = useState('');
   const [city, setCity] = useState('');
+  const [ufs, setUfs] = useState<UFs[]>([]);
+  
+  const [cities, setCities] = useState<Cities[]>([]);
+
+
 
   const navigation = useNavigation();
 
   function handleNavigateToPoints() {
     navigation.navigate('Points', {uf, city});
   }
+
+
+  useEffect(() => {
+    axios.get<IBGEUFResponse[]>('https://servicodados.ibge.gov.br/api/v1/localidades/estados')
+      .then(response => {
+        const ufInitials = response.data.map(uf => {
+          return {
+            label: uf.sigla,
+            value: uf.sigla,
+          }
+        });
+
+        setUfs(ufInitials);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (uf === '') {
+      return;
+    }
+    
+    axios.get<IBGECityResponse[]>(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
+      .then(response => {
+        const cityNames = response.data.map(city => {
+          return {
+            label: city.nome,
+            value: city.nome,
+          }
+        });
+      
+        setCities(cityNames);
+      });
+  }, [uf]);
+
 
   return (
     <KeyboardAvoidingView style={{flex: 1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -35,23 +92,55 @@ const Home = () => {
         </View>
 
         <View style={styles.footer}>
-          <TextInput 
-            style={styles.input}
-            placeholder="Digite a UF"
+        
+        <RNPickerSelect
+            placeholder={{
+              label: 'Selecione UF',
+              value: null,
+              color: '#ddd',
+            }}
+            items={ufs}
+            onValueChange={value => {
+              setUf(value);
+            }}
+            style={{
+              ...pickerSelectStyles,
+              iconContainer: {
+                top: 20,
+                right: 12,
+              },
+            }}
             value={uf}
-            maxLength={2}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            onChangeText={setUf}
+            Icon={() => {
+              return <Feather name="chevron-down" />;
+            }}
+            
+           
           />
 
-          <TextInput 
-            style={styles.input}
-            placeholder="Digite a Cidade"
+        <RNPickerSelect
+            placeholder={{
+              label: 'Selecione a cidade',
+              value: null,
+              color: '#ddd',
+            }}
+            items={cities}
+            onValueChange={value => {
+              setCity(value);
+            }}
+            style={{
+              ...pickerSelectStyles,
+              iconContainer: {
+                top: 20,
+                right: 12,
+              },
+            }}
             value={city}
-            autoCorrect={false}
-            onChangeText={setCity}
+            Icon={() => {
+              return <Feather name="chevron-down" />;
+            }}
           />
+
           <RectButton style={styles.button} onPress={handleNavigateToPoints}>
             <View style={styles.buttonIcon}>
               <Feather name="arrow-right" color="#fff" size={24} />
@@ -96,15 +185,6 @@ const styles = StyleSheet.create({
 
   select: {},
 
-  input: {
-    height: 60,
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    marginBottom: 8,
-    paddingHorizontal: 24,
-    fontSize: 16,
-  },
-
   button: {
     backgroundColor: '#34CB79',
     height: 60,
@@ -129,6 +209,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#FFF',
     fontFamily: 'Roboto_500Medium',
+    fontSize: 16,
+  },
+});
+
+const pickerSelectStyles = StyleSheet.create({
+  inputAndroid: {
+    height: 60,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    marginBottom: 8,
+    paddingHorizontal: 24,
     fontSize: 16,
   },
 });
